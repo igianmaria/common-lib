@@ -1,4 +1,4 @@
-package it.gi.iot.messagging;
+package iot.messagging;
 
 public abstract class Message implements Encodable {
 }

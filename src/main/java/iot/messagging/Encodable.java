@@ -1,6 +1,4 @@
-package it.gi.iot.messagging;
-
-import it.gi.iot.messagging.Message;
+package iot.messagging;
 
 @FunctionalInterface
 public interface Encodable {
