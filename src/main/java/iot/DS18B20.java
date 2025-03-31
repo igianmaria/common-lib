@@ -1,6 +1,7 @@
 package iot;
 
 import iot.messagging.Message;
+import iot.messagging.readings.SensorFailure;
 import iot.messagging.readings.TemperatureReading;
 
 import java.io.BufferedReader;
@@ -31,16 +32,13 @@ public class DS18B20 implements Sensor {
 
         String sensorPath = findSensorPath();
         if (sensorPath == null) {
-            try {
-                throw new IOException("Sensor not found");
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+            System.out.println("[DS18B20] CAnt find Sensor path.");
+            return new SensorFailure();
         }
 
         try (BufferedReader reader = new BufferedReader(new FileReader(sensorPath))) {
-            String line1 = reader.readLine(); // first line
-            String line2 = reader.readLine(); // second line
+            String line1 = reader.readLine();
+            String line2 = reader.readLine();
 
             if (line1 != null && line1.contains("YES") && line2 != null && line2.contains("t=")) {
                 String tempString = line2.split("t=")[1];
@@ -55,9 +53,11 @@ public class DS18B20 implements Sensor {
 
     private static String findSensorPath() {
         java.io.File baseDir = new java.io.File(BASE_PATH);
-        for (String file : baseDir.list()) {
-            if (file.startsWith(SENSOR_FOLDER_PREFIX)) {
-                return BASE_PATH + file + "/" + DATA_FILE;
+        if (baseDir.exists()) {
+            for (String file : baseDir.list()) {
+                if (file.startsWith(SENSOR_FOLDER_PREFIX)) {
+                    return BASE_PATH + file + "/" + DATA_FILE;
+                }
             }
         }
         return null;

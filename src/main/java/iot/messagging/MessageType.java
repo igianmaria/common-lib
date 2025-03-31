@@ -1,9 +1,10 @@
 package iot.messagging;
 
 public enum MessageType {
-    device(0),
-    temperature(1),
-    statics(2);
+    sensorFailure(0),
+    device(1),
+    temperature(2),
+    statics(3);
 
     private final int value;
 
