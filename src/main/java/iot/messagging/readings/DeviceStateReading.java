@@ -3,15 +3,16 @@ package iot.messagging.readings;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import iot.messagging.Encodable;
 import iot.messagging.Message;
 import iot.messagging.MessageType;
+import lombok.Data;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 
-public class DeviceStateReading extends Message implements Encodable {
+@Data
+public class DeviceStateReading extends Message  {
 
     long messageType = MessageType.device.getValue();
     private final long timestamp = System.currentTimeMillis() / 1000;

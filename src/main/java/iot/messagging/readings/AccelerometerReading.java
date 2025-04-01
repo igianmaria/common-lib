@@ -3,17 +3,18 @@ package iot.messagging.readings;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import iot.messagging.Encodable;
 import iot.messagging.Message;
 import iot.messagging.MessageType;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
-public class AccelerometerReading extends Message implements Encodable {
+public class AccelerometerReading extends Message {
 
     private final long messageType = MessageType.statics.getValue();
     private final long timestamp = System.currentTimeMillis() / 1000; // secondi
-    private long x, y, z;
+    private double x, y, z;
 
     @Override
     public byte[] encode() {
