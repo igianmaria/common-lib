@@ -7,8 +7,6 @@ import iot.messagging.Message;
 import iot.messagging.MessageType;
 import lombok.Data;
 
-import java.util.List;
-
 @Data
 public class AccelerometerReading extends Message {
 

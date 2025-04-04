@@ -1,8 +1,8 @@
 package iot.hw;
 
 import iot.Sensor;
-import iot.SensorEventListener;
-import iot.diagnostics.data.Thresholds;
+import iot.diagnostics.InspectionResult;
+import iot.diagnostics.TemperatureDiagnoseStrategy;
 import iot.messagging.Message;
 import iot.messagging.readings.Alarm;
 import iot.messagging.readings.SensorFailure;
@@ -12,24 +12,16 @@ import lombok.Data;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.*;
+import java.sql.Time;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 
-import static iot.diagnostics.data.TemperatureThresholds.TEMPERATURE_THRESHOLDS;
+@Data
+public class DS18B20 extends Sensor {
 
-public class DS18B20 implements Sensor {
-
-    public static final String version = "1.1"; // va in fase di generazione del jar..NON SPOSTARE IN BASSO
-
-    private SensorEventListener listener;
-
-    private Timer samplingTimer;
-    private long samplingIntervall = 1000;
-
-    private Timer sendTimer;
-    private long sendIntervall = 10000;
-
-    private String monitoredEquipment;
     private static final String BASE_PATH = "/sys/bus/w1/devices/";
     private static final String SENSOR_FOLDER_PREFIX = "28-";
     private static final String DATA_FILE = "w1_slave";
@@ -39,8 +31,9 @@ public class DS18B20 implements Sensor {
     @Override
     public void initialize() {
         System.out.println("[DS18B20] Inizializzazione completata.");
-        samplingTimer = new Timer();
+        readTimer = new Timer();
         sendTimer = new Timer();
+        samplingTimer = new Timer();
     }
 
     private Message readData() throws IOException {
@@ -83,43 +76,44 @@ public class DS18B20 implements Sensor {
     public void turnOn() {
         System.out.println("[DS18B20] Sensore acceso.");
 
-        sendTimer.scheduleAtFixedRate(new TimerTask() {
+
+        readTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
                 Message m = null;
                 try {
                     m = readData();
-                    if (listener != null) {
-                        listener.onSensorDataReady("DS18B20", m );
-                    }
-
                 } catch (IOException e) {
                     System.out.println(e.getMessage());
                 }
             }
-        }, 0, sendIntervall);
+        }, 0, (long) (readInterval * 1000));
+
+
+        sendTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                if (listener != null) {
+                    TemperatureReading tempReading = new TemperatureReading();
+                    tempReading.setTemperature(currentRMS);
+                    listener.onSensorDataReady("ADXL345", tempReading);
+                }
+            }
+        },0, sendInterval * 1000);
 
 
         samplingTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                Message m = null;
-                try {
-                    m = readData();
-                    if (readingBuffer.size() == 50){
-                        List<Message> snapshot;
-                        synchronized (readingBuffer) {
-                            snapshot = new ArrayList<>(readingBuffer);
-                            readingBuffer.clear();
-                        }
-                        evaluateHealthCondition(snapshot);
-                    }
-
-                } catch (IOException e) {
-                    System.out.println(e.getMessage());
+                List<Message> snapshot;
+                synchronized (readingBuffer) {
+                    snapshot = new ArrayList<>(readingBuffer);
+                    readingBuffer.clear();
                 }
+                evaluateHealthCondition(snapshot);
             }
-        }, 0, samplingIntervall);
+        }, 0, samplingInterval * 1000);
+
     }
 
     @Override
@@ -130,47 +124,25 @@ public class DS18B20 implements Sensor {
         }
     }
 
-    @Override
     public void reset() {
         System.out.println("[DS18B20] Resetting sensore.");
     }
 
-    @Override
     public void evaluateHealthCondition(List<Message> snapshot) {
         CompletableFuture.runAsync(() -> {
-            double rms = Math.sqrt(
-                    snapshot.stream()
-                            .map(msg -> (TemperatureReading) msg)
-                            .mapToDouble(r -> Math.pow(r.getTemperature(), 2))
-                            .average()
-                            .orElse(0.0)
-            );
 
-            Thresholds.Range range = TEMPERATURE_THRESHOLDS.get(monitoredEquipment);
-            boolean anomaly = rms < range.min() || rms > range.max();
-            if (anomaly) {
-                if (listener != null) {
-                    Alarm alarm = new Alarm();
-                    alarm.setSource("DS18B20:" + monitoredEquipment);
-                    alarm.setAlarmMessage("Allarme temperatura: " + rms);
-                    listener.onSensorAlarm("DS18B20",alarm);
-                }
+            TemperatureDiagnoseStrategy strategy = new TemperatureDiagnoseStrategy();
+            InspectionResult result = strategy.inspect(snapshot);
+
+            currentRMS = result.getRmsValue();
+            System.out.println(this.getClass().getName() + ":" + currentRMS);
+
+            if (result.isAnomalyDetected() && listener != null) {
+                Alarm alarm = new Alarm();
+                alarm.setSource("DS18B20");
+                alarm.setAlarmMessage("Allarme temperatura: " + result.getRmsValue() + ":" + result.getHumanReadableMessage());
+                listener.onSensorAlarm("DS18B20", alarm);
             }
         });
-    }
-
-    @Override
-    public void setReadingInterval(int readingInterval) {
-        this.samplingIntervall = readingInterval * 1000;
-    }
-
-    @Override
-    public void setSensorEventListener(SensorEventListener listener) {
-        this.listener = listener;
-    }
-
-    @Override
-    public void setAppliedMachine(String monitoredEquipment) {
-        this.monitoredEquipment = monitoredEquipment;
     }
 }

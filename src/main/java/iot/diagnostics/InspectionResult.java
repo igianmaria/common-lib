@@ -1,25 +1,16 @@
 package iot.diagnostics;
 
+import lombok.Data;
+
+@Data
 public class InspectionResult {
     private final boolean anomalyDetected;
-    private final double alarmValueDetected;
+    private final double rmsValue;
     private final String humanReadableMessage;
 
     public InspectionResult(boolean anomalyDetected, double value, String message) {
         this.anomalyDetected = anomalyDetected;
-        this.alarmValueDetected = value;
+        this.rmsValue = value;
         this.humanReadableMessage = message;
-    }
-
-    public boolean isAnomalyDetected() {
-        return anomalyDetected;
-    }
-
-    public double getAlarmValueDetected() {
-        return alarmValueDetected;
-    }
-
-    public String getHumanReadableMessage() {
-        return humanReadableMessage;
     }
 }
